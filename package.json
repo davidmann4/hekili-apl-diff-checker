@@ -7,7 +7,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
   "start": "next start",
-  "fetch-apls": "node scripts/fetch-apls.js https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DemonHunterHavoc.simc"
+  "fetch-apls": "node scripts/fetch-apls.js"
   },
   "dependencies": {
     "react": "19.1.0",

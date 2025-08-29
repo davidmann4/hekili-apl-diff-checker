@@ -30,13 +30,15 @@ Use the provided CLI to fetch SimulationCraft APL files and their declared upstr
 
 It then downloads that upstream file, and writes a combined JSON file to `public/apl-data.json` which can be consumed by the Next.js app.
 
-Run it with the default Havoc Demon Hunter APL:
+By default, the script will look for `scripts/apl-files.txt` containing one raw URL per line (comments starting with `#` are ignored). A curated list of all specialization .simc files is already provided there.
+
+Run it to fetch everything in that list:
 
 ```bash
 npm run fetch-apls
 ```
 
-Or pass additional raw URLs:
+To fetch only specific files (bypassing the list), pass raw URLs explicitly:
 
 ```bash
 node scripts/fetch-apls.js https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DemonHunterHavoc.simc https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/Another/File.simc

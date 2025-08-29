@@ -1,0 +1,42 @@
+# Raw URLs for all desired .simc APL files.
+# Format: one raw.githubusercontent.com URL per line.
+# Source repo assumed: Hekili/hekili branch thewarwithin under TheWarWithin/Priorities/
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DeathKnightBlood.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DeathKnightFrost.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DeathKnightUnholy.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DemonHunterHavoc.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DemonHunterVengeance.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DruidBalance.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DruidFeral.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DruidGuardian.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DruidRestoration.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/EvokerAugmentation.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/EvokerDevastation.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/EvokerPreservation.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/HunterBeastMastery.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/HunterMarksmanship.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/HunterSurvival.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/MageArcane.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/MageFire.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/MageFrost.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/MonkBrewmaster.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/MonkMistweaver.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/MonkWindwalker.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/PaladinHoly.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/PaladinProtection.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/PaladinRetribution.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/PriestDiscipline.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/PriestHoly.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/PriestShadow.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/RogueAssassination.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/RogueOutlaw.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/RogueSubtlety.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/ShamanElemental.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/ShamanEnhancement.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/ShamanRestoration.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/WarlockAffliction.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/WarlockDemonology.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/WarlockDestruction.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/WarriorArms.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/WarriorFury.simc
+https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/WarriorProtection.simc

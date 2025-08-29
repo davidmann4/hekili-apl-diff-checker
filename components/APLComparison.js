@@ -149,10 +149,21 @@ function areSimilar(a, b) {
   const prefixA = a.split(',if=')[0];
   const prefixB = b.split(',if=')[0];
   if (prefixA === prefixB) {
+    // If both have conditions, and the first logical clause (before first & or |) matches exactly,
+    // treat as similar. This helps pair lines where the tail of the condition changed (added/removed clauses
+    // or numeric tweaks) but the primary gating clause stayed the same (e.g., buff.stack requirement).
+    if (a.includes(',if=') && b.includes(',if=')) {
+      const condAFull = a.slice(a.indexOf(',if=') + 4);
+      const condBFull = b.slice(b.indexOf(',if=') + 4);
+      const firstClauseA = condAFull.split(/[&|]/, 1)[0];
+      const firstClauseB = condBFull.split(/[&|]/, 1)[0];
+      if (firstClauseA && firstClauseA === firstClauseB) return true;
+    }
     // Token-based Jaccard similarity on condition part (after ,if=)
     const condA = a.includes(',if=') ? a.slice(a.indexOf(',if=') + 4) : '';
     const condB = b.includes(',if=') ? b.slice(b.indexOf(',if=') + 4) : '';
-    const tok = (s) => s.match(/[A-Za-z0-9_.]+|[&|()=!<>]+|\d+\.\d+|\d+/g) || [];
+    // Improved tokenization: split each operator/paren individually instead of grouping sequences.
+    const tok = (s) => s.match(/[A-Za-z0-9_.]+|[&|()=!<>]|\d+\.\d+|\d+/g) || [];
     const ta = tok(condA);
     const tb = tok(condB);
     const setA = new Set(ta);
@@ -161,7 +172,7 @@ function areSimilar(a, b) {
     for (const t of setA) if (setB.has(t)) inter++;
     const union = setA.size + setB.size - inter;
     const jaccard = union === 0 ? 0 : inter / union;
-    if (jaccard > 0.55) return true; // fairly similar large expressions
+    if (jaccard > 0.5) return true; // slightly lowered threshold for complex expressions
   }
   // Special-case variable lines: if they share identical prefix up to and including 'value=' treat as similar.
   const valueIdxA = a.indexOf('value=');

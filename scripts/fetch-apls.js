@@ -47,9 +47,23 @@ function parseUpstream(firstLine) {
 }
 
 async function run() {
-  const files = process.argv.slice(2);
+  let files = process.argv.slice(2);
+  if (!files.length) {
+    // Attempt to read default list from apl-files.txt (one raw URL per line, # for comments)
+    const listPath = path.join(__dirname, 'apl-files.txt');
+    try {
+      const listRaw = await fs.readFile(listPath, 'utf8');
+      files = listRaw
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('#'));
+    } catch (e) {
+      console.error('No URLs provided and failed to read apl-files.txt:', e.message);
+    }
+  }
   if (!files.length) {
     console.error('Usage: fetch-apls <raw_url1> <raw_url2> ...');
+    console.error('Or create scripts/apl-files.txt with one raw URL per line.');
     process.exit(1);
   }
   const results = [];
