@@ -40,3 +40,19 @@ export default async function APLPage({ params }) {
     </main>
   );
 }
+
+export async function generateMetadata({ params }) {
+  try {
+    const filePath = path.join(process.cwd(), 'public', 'apl-data.json');
+    const raw = await fs.readFile(filePath, 'utf8');
+    const data = JSON.parse(raw);
+    const items = data?.items || [];
+    const m = params.id.match(/^(\d+)/);
+    const idx = m ? parseInt(m[1], 10) : parseInt(params.id, 10);
+    const item = !isNaN(idx) && idx >= 0 && idx < items.length ? items[idx] : null;
+    const label = item?.sourceUrl ? item.sourceUrl.split('/').pop() : (item ? `Item ${idx}` : 'Unknown APL');
+    return { title: label };
+  } catch {
+    return { title: 'APL Detail' };
+  }
+}
