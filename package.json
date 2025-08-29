@@ -2,10 +2,12 @@
   "name": "hekili-apl-diff-checker",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start"
+  "start": "next start",
+  "fetch-apls": "node scripts/fetch-apls.js https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DemonHunterHavoc.simc"
   },
   "dependencies": {
     "react": "19.1.0",

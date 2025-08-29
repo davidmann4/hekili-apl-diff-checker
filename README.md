@@ -20,6 +20,51 @@ You can start editing the page by modifying `app/page.js`. The page auto-updates
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Fetching APL Data
+
+Use the provided CLI to fetch SimulationCraft APL files and their declared upstream versions. The script downloads each provided raw GitHub URL, inspects the first line for a pattern like:
+
+```
+## Upstream: https://github.com/simulationcraft/simc/blob/thewarwithin/ActionPriorityLists/default/demonhunter_havoc.simc
+```
+
+It then downloads that upstream file, and writes a combined JSON file to `public/apl-data.json` which can be consumed by the Next.js app.
+
+Run it with the default Havoc Demon Hunter APL:
+
+```bash
+npm run fetch-apls
+```
+
+Or pass additional raw URLs:
+
+```bash
+node scripts/fetch-apls.js https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/TheWarWithin/Priorities/DemonHunterHavoc.simc https://raw.githubusercontent.com/Hekili/hekili/thewarwithin/Another/File.simc
+```
+
+Output file structure example:
+
+```json
+{
+	"generatedAt": "2025-08-29T12:34:56.000Z",
+	"items": [
+		{
+			"sourceUrl": "https://raw.githubusercontent.com/Hekili/hekili/.../DemonHunterHavoc.simc",
+			"upstreamUrl": "https://raw.githubusercontent.com/simulationcraft/simc/.../demonhunter_havoc.simc",
+			"firstLine": "## Upstream: https://github.com/simulationcraft/simc/blob/.../demonhunter_havoc.simc",
+			"sourceContent": "...",
+			"upstreamContent": "..."
+		}
+	]
+}
+```
+
+If an upstream cannot be fetched, an `error` field will be present for that item.
+
+## UI
+
+The home page loads `public/apl-data.json` on the server and renders the first entry side-by-side: left = upstream SimulationCraft APL, right = Hekili APL. Run `npm run fetch-apls` to refresh.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
