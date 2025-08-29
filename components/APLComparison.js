@@ -7,28 +7,15 @@ function alignLines(leftLines, rightLines) {
   function linesEquivalent(a, b) {
     if (!a || !b) return false;
     if (a === b) return true;
-    // Compare action part (before ,if=) after normalizing the action assignment syntax
-    const actionKey = (s) => {
-      const preIf = s.split(',if=')[0];
-      return preIf
-        .replace(/\+=\//, '=')
-        .replace(/=\//, '=')
-        .replace(/\s+/g, '');
+    const parse = (s) => {
+      const m = s.trim().match(/^actions\.([A-Za-z0-9_]+)(?:\s*\+=|=)\/?([A-Za-z0-9_]+)/);
+      if (!m) return null;
+      return { list: m[1], action: m[2] };
     };
-    if (actionKey(a) !== actionKey(b)) return false;
-    // Normalize condition (after ,if=) removing boss& before fight_remains and whitespace
-    const normCond = (s) => {
-      const idx = s.indexOf(',if=');
-      if (idx === -1) return '';
-      return s
-        .slice(idx + 4)
-        .replace(/boss&(?=fight_remains)/g, '')
-        .replace(/\s+/g, '');
-    };
-    const ca = normCond(a);
-    const cb = normCond(b);
-    if (ca && cb && ca === cb) return true; // same logical condition after normalization
-    return false;
+    const pa = parse(a);
+    const pb = parse(b);
+    if (!pa || !pb) return false;
+    return pa.list === pb.list && pa.action === pb.action;
   }
   const n = leftLines.length;
   const m = rightLines.length;
@@ -122,87 +109,15 @@ function diffTokens(leftLine, rightLine) {
 function areSimilar(a, b) {
   if (!a || !b) return false;
   if (a === b) return true;
-  // Avoid treating different run_action_list lines (e.g., different names or added strict / condition flips)
-  // as similar; we want them to appear as a clear removal/addition pair. This prevents the
-  // felscarred vs fallback gating line from being merged away.
-  if (a.includes('run_action_list') && b.includes('run_action_list')) {
-    const preIfA = a.split(',if=')[0];
-    const preIfB = b.split(',if=')[0];
-    if (preIfA !== preIfB) return false;
-  }
-  // Normalize minor syntactic differences (e.g., appending to list vs direct assignment before variable/action fragment)
-  const norm = (s) => {
-    // actions.xxx+=/variable -> actions.xxx=variable ; also remove single leading slash before action after +=
-    return s
-      .replace(/\+=\//, '=')
-      .replace(/=\//, '=')
-  // Treat adding a boss& gate before fight_remains as equivalent.
-  .replace(/boss&(?=fight_remains)/g, '')
-      .replace(/\s+/g, ''); // collapse whitespace for comparison
+  const parse = (s) => {
+    const m = s.trim().match(/^actions\.([A-Za-z0-9_]+)(?:\s*\+=|=)\/?([A-Za-z0-9_]+)/);
+    if (!m) return null;
+    return { list: m[1], action: m[2] };
   };
-  const na = norm(a);
-  const nb = norm(b);
-  if (na === nb) return true;
-  // Treat addition of 'boss&' before fight_remains as similar (common pattern refinement)
-  if (na.replace(/boss&fight_remains/g, 'fight_remains') === nb.replace(/boss&fight_remains/g, 'fight_remains')) return true;
-  // If same action & actor prefix before ",if=" treat as candidate regardless of length.
-  const prefixA = a.split(',if=')[0];
-  const prefixB = b.split(',if=')[0];
-  if (prefixA === prefixB) {
-    // If both have conditions, and the first logical clause (before first & or |) matches exactly,
-    // treat as similar. This helps pair lines where the tail of the condition changed (added/removed clauses
-    // or numeric tweaks) but the primary gating clause stayed the same (e.g., buff.stack requirement).
-    if (a.includes(',if=') && b.includes(',if=')) {
-      const condAFull = a.slice(a.indexOf(',if=') + 4);
-      const condBFull = b.slice(b.indexOf(',if=') + 4);
-      const firstClauseA = condAFull.split(/[&|]/, 1)[0];
-      const firstClauseB = condBFull.split(/[&|]/, 1)[0];
-      if (firstClauseA && firstClauseA === firstClauseB) return true;
-    }
-    // Token-based Jaccard similarity on condition part (after ,if=)
-    const condA = a.includes(',if=') ? a.slice(a.indexOf(',if=') + 4) : '';
-    const condB = b.includes(',if=') ? b.slice(b.indexOf(',if=') + 4) : '';
-    // Improved tokenization: split each operator/paren individually instead of grouping sequences.
-    const tok = (s) => s.match(/[A-Za-z0-9_.]+|[&|()=!<>]|\d+\.\d+|\d+/g) || [];
-    const ta = tok(condA);
-    const tb = tok(condB);
-    const setA = new Set(ta);
-    const setB = new Set(tb);
-    let inter = 0;
-    for (const t of setA) if (setB.has(t)) inter++;
-    const union = setA.size + setB.size - inter;
-    const jaccard = union === 0 ? 0 : inter / union;
-    if (jaccard > 0.5) return true; // slightly lowered threshold for complex expressions
-  }
-  // Special-case variable lines: if they share identical prefix up to and including 'value=' treat as similar.
-  const valueIdxA = a.indexOf('value=');
-  const valueIdxB = b.indexOf('value=');
-  if (valueIdxA !== -1 && valueIdxB !== -1) {
-    const prefixA = a.slice(0, valueIdxA + 6); // include 'value='
-    const prefixB = b.slice(0, valueIdxB + 6);
-    if (prefixA === prefixB) return true;
-  }
-  // Compute common prefix length.
-  let cp = 0;
-  while (cp < a.length && cp < b.length && a[cp] === b[cp]) cp++;
-  // If they share a long starting segment (>= 25 chars or >= 35% of shorter) consider similar.
-  if (cp >= 25 || cp >= Math.min(a.length, b.length) * 0.35) {
-    // We'll still ensure they start with 'actions' to reduce false positives.
-    if (a.startsWith('actions') && b.startsWith('actions')) return true;
-  }
-  // Quick reject if very different lengths (only after trying prefix heuristics).
-  const lenDiff = Math.abs(a.length - b.length);
-  if (lenDiff > Math.max(60, Math.min(a.length, b.length) * 1.2)) return false;
-  // Compare heads before first comma or space.
-  const aHead = a.split(/[ ,]/, 2)[0];
-  const bHead = b.split(/[ ,]/, 2)[0];
-  if (aHead && bHead && aHead === bHead) return true;
-  // Rough character overlap ratio.
-  let overlap = 0;
-  const setA = new Set(a);
-  for (const ch of b) if (setA.has(ch)) overlap++;
-  const ratio = overlap / Math.max(a.length, b.length);
-  return ratio > 0.6;
+  const pa = parse(a);
+  const pb = parse(b);
+  if (!pa || !pb) return false;
+  return pa.list === pb.list && pa.action === pb.action;
 }
 
 // Post-process aligned rows to pair adjacent left-only/right-only rows into modified rows when similar.
