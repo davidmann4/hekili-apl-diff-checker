@@ -1,5 +1,9 @@
 "use client";
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
+
+// Lazy-load LineInspector to reduce initial bundle
+const LineInspector = dynamic(() => import('./LineInspector'), { ssr: false });
 
 // Compute an alignment of lines using a simple LCS so identical lines line up.
 function alignLines(leftLines, rightLines) {
@@ -163,6 +167,7 @@ function mergeModifiedRows(rows) {
 export default function APLComparison({ simc, hekili, generatedAt }) {
   const [copiedRow, setCopiedRow] = useState(null);
   const [linkedRow, setLinkedRow] = useState(null); // row number (0-based) that is highlighted via hash
+  const [inspectRow, setInspectRow] = useState(null); // index of row being inspected
   const scrollContainerRef = useRef(null);
   const { rows } = useMemo(() => {
     const leftLines = (simc || '').replace(/\r\n?/g, '\n').split('\n');
@@ -266,6 +271,7 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
   }, []);
 
   return (
+    <>
     <div className="flex flex-col gap-2">
       {generatedAt && (
         <div className="text-sm text-gray-500">Generated: {generatedAt}</div>
@@ -276,17 +282,17 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
           <div className="w-1/2 pl-2 border-l border-gray-300 dark:border-gray-700">Hekili</div>
         </header>
         <div className="px-3 py-1 text-[10px] bg-gray-50 dark:bg-gray-900 border-b flex flex-wrap gap-x-6 gap-y-1 text-gray-600 dark:text-gray-400 items-center">
-          <div className="flex items-center gap-1"><span className="px-1 bg-red-200/70 dark:bg-red-900/60 rounded-sm inline-block"/> removed token</div>
-          <div className="flex items-center gap-1"><span className="px-1 bg-green-200/70 dark:bg-green-900/60 rounded-sm inline-block"/> added token</div>
-          <div className="flex items-center gap-1"><span className="w-3 h-3 inline-block bg-red-50 dark:bg-red-900/30 border border-red-200/60 dark:border-red-800/60"/> line only in simc (removed)</div>
-          <div className="flex items-center gap-1"><span className="w-3 h-3 inline-block bg-green-50 dark:bg-green-900/30 border border-green-200/60 dark:border-green-800/60"/> line only in hekili (added)</div>
+          <div className="flex items-center gap-1"><span className="px-1 bg-red-300 dark:bg-red-800 rounded-sm inline-block"/> removed token</div>
+          <div className="flex items-center gap-1"><span className="px-1 bg-green-300 dark:bg-green-800 rounded-sm inline-block"/> added token</div>
+          <div className="flex items-center gap-1"><span className="w-3 h-3 inline-block bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-700"/> line only in simc (removed)</div>
+          <div className="flex items-center gap-1"><span className="w-3 h-3 inline-block bg-green-100 dark:bg-green-950/40 border border-green-300 dark:border-green-700"/> line only in hekili (added)</div>
           <div className="text-[9px] opacity-70">Use Copy to grab diff; Link copies a URL (hash) & scrolls/highlights.</div>
         </div>
   <div ref={scrollContainerRef} className="flex-1 overflow-auto font-mono text-[11px] leading-snug">
           <div>
             {rows.map((r, idx) => {
               const zebra = idx % 2 === 0 ? 'bg-white dark:bg-gray-950' : 'bg-gray-50 dark:bg-gray-900/50';
-              const diffBg = r.type === 'same' ? '' : r.type === 'left-only' ? 'bg-red-50 dark:bg-red-900/30' : r.type === 'right-only' ? 'bg-green-50 dark:bg-green-900/30' : '';
+              const diffBg = r.type === 'same' ? '' : r.type === 'left-only' ? 'bg-red-100 dark:bg-red-950/40' : r.type === 'right-only' ? 'bg-green-100 dark:bg-green-950/40' : '';
               const isLinked = linkedRow === idx;
               // Use inset ring + higher z-index + hide default bottom border for consistent full outline
               const highlight = isLinked ? 'ring-2 ring-inset ring-amber-400 dark:ring-amber-500 shadow-inner z-10 border-b-transparent' : '';
@@ -325,6 +331,17 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
                       </svg>
                       <span>Link</span>
                     </button>
+                    <button
+                      onClick={() => setInspectRow(idx)}
+                      title="Inspect this line in detail"
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-purple-600 text-white shadow hover:bg-purple-700 focus:outline-none focus:ring flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                      </svg>
+                      <span>Inspect</span>
+                    </button>
                   </div>
                   <pre className={`m-0 w-1/2 whitespace-pre-wrap break-words px-2 py-0.5 ${r.type === 'left-only' ? diffBg : ''}`}>
                     {r.type === 'modified' ? (
@@ -333,7 +350,7 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
                           key={i2}
                           className={
                             t.type === 'remove'
-                              ? 'bg-red-200/70 dark:bg-red-900/60 text-red-800 dark:text-red-200 rounded-sm'
+                              ? 'bg-red-300 dark:bg-red-800 text-red-900 dark:text-red-100 rounded-sm'
                               : ''
                           }
                         >
@@ -351,7 +368,7 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
                           key={i2}
                           className={
                             t.type === 'add'
-                              ? 'bg-green-200/70 dark:bg-green-900/60 text-green-800 dark:text-green-200 rounded-sm'
+                              ? 'bg-green-300 dark:bg-green-800 text-green-900 dark:text-green-100 rounded-sm'
                               : ''
                           }
                         >
@@ -369,5 +386,14 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
         </div>
       </div>
     </div>
+      <LineInspector
+        open={inspectRow !== null}
+        index={inspectRow ?? -1}
+        onClose={() => setInspectRow(null)}
+        rowType={inspectRow !== null ? rows[inspectRow]?.type : null}
+        leftLine={inspectRow !== null ? (rows[inspectRow]?.left || '') : ''}
+        rightLine={inspectRow !== null ? (rows[inspectRow]?.right || '') : ''}
+      />
+    </>
   );
 }
