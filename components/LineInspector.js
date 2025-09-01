@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 // Utility: split an if= expression into individual conditions joined by & (respecting parentheses)
 function splitConditions(expr) {
@@ -133,6 +133,138 @@ export default function LineInspector({ open, onClose, leftLine, rightLine, rowT
     right: parseLine(rightLine)
   }), [leftLine, rightLine]);
 
+  // Shared variable values (across both sides).
+  const [values, setValues] = useState({});
+
+  // Expression parsing & evaluation helpers (minimal logical evaluator for &, |, and parentheses)
+  function tokenizeExpr(expr) {
+    const tokens = [];
+    let buf = '';
+    const flush = () => { if (buf.trim()) { tokens.push({ type: 'cond', value: buf.trim() }); buf = ''; } };
+    for (let i = 0; i < expr.length; i++) {
+      const c = expr[i];
+      if (c === '&' || c === '|' || c === '(' || c === ')') {
+        flush();
+        tokens.push({ type: c });
+      } else {
+        buf += c;
+      }
+    }
+    flush();
+    return tokens;
+  }
+
+  function parseExpression(expr) {
+    const tokens = tokenizeExpr(expr);
+    let pos = 0;
+    function peek() { return tokens[pos]; }
+    function consume() { return tokens[pos++]; }
+    function parsePrimary() {
+      const t = peek();
+      if (!t) return null;
+      if (t.type === '(') { consume(); const node = parseOr(); if (peek() && peek().type === ')') consume(); return node; }
+      if (t.type === 'cond') { consume(); return buildCondNode(t.value); }
+      return null;
+    }
+    function parseAnd() {
+      let node = parsePrimary();
+      while (peek() && peek().type === '&') { consume(); const rhs = parsePrimary(); node = { kind: 'and', left: node, right: rhs }; }
+      return node;
+    }
+    function parseOr() {
+      let node = parseAnd();
+      while (peek() && peek().type === '|') { consume(); const rhs = parseAnd(); node = { kind: 'or', left: node, right: rhs }; }
+      return node;
+    }
+    return parseOr();
+  }
+
+  function evalAst(ast, varValues, resultMap, nextIdRef) {
+    if (!ast) return 0;
+    let id = nextIdRef.current++;
+    let out;
+    if (ast.kind === 'cond') {
+      let bool = 0;
+      let leftVal;
+      if (ast.operator) {
+        const lhs = varValues[ast.variable] === undefined ? 0 : Number(varValues[ast.variable]) || 0;
+        leftVal = lhs;
+        let rhsVal;
+        if (ast.rhsIsNumber) rhsVal = ast.rhsNumber; else rhsVal = varValues[ast.rhsVar] === undefined ? 0 : Number(varValues[ast.rhsVar]) || 0;
+        switch (ast.operator) {
+          case '>': bool = lhs > rhsVal ? 1 : 0; break;
+          case '>=': bool = lhs >= rhsVal ? 1 : 0; break;
+          case '<': bool = lhs < rhsVal ? 1 : 0; break;
+          case '<=': bool = lhs <= rhsVal ? 1 : 0; break;
+          case '!=': bool = lhs != rhsVal ? 1 : 0; break; // eslint-disable-line eqeqeq
+          case '==':
+          case '=': bool = lhs == rhsVal ? 1 : 0; break; // eslint-disable-line eqeqeq
+          default: bool = 0;
+        }
+      } else {
+        const raw = varValues[ast.variable];
+        const num = raw === undefined ? 0 : Number(raw) || 0;
+        leftVal = num;
+        bool = num !== 0 ? 1 : 0;
+      }
+      out = bool;
+      resultMap[id] = { type: 'cond', expr: ast.raw, variable: ast.variable, operator: ast.operator, rhs: ast.rhsRaw, lhs: leftVal, bool: out };
+      return out;
+    }
+    const l = evalAst(ast.left, varValues, resultMap, nextIdRef);
+    const r = evalAst(ast.right, varValues, resultMap, nextIdRef);
+    if (ast.kind === 'and') out = (l && r) ? 1 : 0; else if (ast.kind === 'or') out = (l || r) ? 1 : 0; else out = 0;
+    resultMap[id] = { type: ast.kind, bool: out };
+    return out;
+  }
+
+  function evaluate(expr, varValues) {
+    const ast = parseExpression(expr);
+    const resultMap = {};
+    const nextIdRef = { current: 1 };
+    const final = evalAst(ast, varValues, resultMap, nextIdRef);
+    return { final, ast, resultMap };
+  }
+
+  // Group (parentheses) evaluation: map closing index order to value.
+  function evaluateGroups(expr, varValues) {
+    const groups = [];
+    const stack = [];
+    for (let i = 0; i < expr.length; i++) {
+      const c = expr[i];
+      if (c === '(') stack.push(i);
+      else if (c === ')' && stack.length) {
+        const start = stack.pop();
+        const inner = expr.slice(start + 1, i);
+        const { final } = evaluate(inner, varValues);
+        groups.push(final);
+      }
+    }
+    return groups; // in order of closing parens encountered
+  }
+  function buildCondNode(raw) {
+    const m = raw.match(/^(.*?)\s*(>=|<=|==|!=|=|>|<)\s*(.*?)$/);
+    if (m) {
+      const variable = m[1].trim();
+      const operator = m[2];
+      const rhsRaw = m[3].trim();
+      const rhsNumber = Number(rhsRaw);
+      const rhsIsNumber = !isNaN(rhsNumber) && rhsRaw !== '';
+      return { kind: 'cond', raw, variable, operator, rhsRaw, rhsIsNumber, rhsNumber, rhsVar: rhsIsNumber ? null : rhsRaw };
+    }
+    // treat whole raw as variable name
+    return { kind: 'cond', raw, variable: raw, operator: null };
+  }
+
+  const setValueFor = useCallback((variable) => {
+    const existing = values[variable];
+    const entered = window.prompt(`Set numeric value for: ${variable}\n(0 = false, non-zero = true)`, existing === undefined ? '' : existing);
+    if (entered === null) return;
+    const num = Number(entered);
+    if (isNaN(num)) return;
+    setValues(v => ({ ...v, [variable]: num }));
+  }, [values]);
+
   // Tokenize utilities (duplicated from comparison for isolation)
   function tokenize(line) {
     if (!line) return [];
@@ -193,6 +325,11 @@ export default function LineInspector({ open, onClose, leftLine, rightLine, rowT
   const leftSet = useMemo(() => new Set(leftPretty.map(l => l.trim())), [leftPretty]);
   const rightSet = useMemo(() => new Set(rightPretty.map(l => l.trim())), [rightPretty]);
 
+  const leftEval = useMemo(() => leftExpr ? evaluate(leftExpr, values) : null, [leftExpr, values]);
+  const rightEval = useMemo(() => rightExpr ? evaluate(rightExpr, values) : null, [rightExpr, values]);
+  const leftGroupVals = useMemo(() => leftExpr ? evaluateGroups(leftExpr, values) : [], [leftExpr, values]);
+  const rightGroupVals = useMemo(() => rightExpr ? evaluateGroups(rightExpr, values) : [], [rightExpr, values]);
+
   if (!open) return null;
 
   return (
@@ -217,6 +354,11 @@ export default function LineInspector({ open, onClose, leftLine, rightLine, rowT
           <section className="p-3 space-y-3">
             <div>
               <div className="text-xs font-semibold mb-1">Raw Lines (inline diff)</div>
+              {/* Column labels for clarity */}
+              <div className="grid grid-cols-2 gap-2 mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <div className="text-left">SimC</div>
+                <div className="text-left">Hekili</div>
+              </div>
               <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
                 <pre className="p-2 rounded bg-gray-100 dark:bg-gray-900 whitespace-pre-wrap break-words min-h-[2.5rem] border border-gray-200 dark:border-gray-800">
                   {tokenDiff.leftTokens.length === 0 && !leftLine && <span className="italic opacity-50">(none)</span>}
@@ -238,25 +380,33 @@ export default function LineInspector({ open, onClose, leftLine, rightLine, rowT
                   <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">Operators end their line; indentation reflects parentheses.</span>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-[11px] font-mono">
-                  <div className="border rounded border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-2 overflow-auto max-h-[60vh]">
+                  <div className="border rounded border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-2 overflow-auto max-h-[60vh] flex flex-col gap-0.5">
+                    <div className="text-[10px] mb-1 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">SimC Result: {leftEval ? leftEval.final : '—'}</div>
                     {leftPretty.length === 0 && <div className="italic opacity-50">(no conditions)</div>}
-                    {leftPretty.map((ln,i)=>{
-                      const trimmed = ln.trim();
-                      const shared = rightSet.has(trimmed);
-                      return (
-                        <div key={i} className={`whitespace-pre break-words ${shared ? '' : 'bg-red-300 dark:bg-red-800 text-red-900 dark:text-red-100 rounded-sm'}`}>{ln}</div>
-                      );
-                    })}
+                    {leftPretty.length > 0 && leftExpr && (
+                      <PrettyInteractive
+                        side="left"
+                        prettyLines={leftPretty}
+                        sharedSet={rightSet}
+                        values={values}
+                        setValueFor={setValueFor}
+                        groupValues={leftGroupVals}
+                      />
+                    )}
                   </div>
-                  <div className="border rounded border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-2 overflow-auto max-h-[60vh]">
+                  <div className="border rounded border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/40 p-2 overflow-auto max-h-[60vh] flex flex-col gap-0.5">
+                    <div className="text-[10px] mb-1 font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Hekili Result: {rightEval ? rightEval.final : '—'}</div>
                     {rightPretty.length === 0 && <div className="italic opacity-50">(no conditions)</div>}
-                    {rightPretty.map((ln,i)=>{
-                      const trimmed = ln.trim();
-                      const shared = leftSet.has(trimmed);
-                      return (
-                        <div key={i} className={`whitespace-pre break-words ${shared ? '' : 'bg-green-300 dark:bg-green-800 text-green-900 dark:text-green-100 rounded-sm'}`}>{ln}</div>
-                      );
-                    })}
+                    {rightPretty.length > 0 && rightExpr && (
+                      <PrettyInteractive
+                        side="right"
+                        prettyLines={rightPretty}
+                        sharedSet={leftSet}
+                        values={values}
+                        setValueFor={setValueFor}
+                        groupValues={rightGroupVals}
+                      />
+                    )}
                   </div>
                 </div>
                 {/* Legend removed as requested */}
@@ -265,6 +415,80 @@ export default function LineInspector({ open, onClose, leftLine, rightLine, rowT
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Subcomponent: renders pretty lines with interactive value setting & group evaluation.
+function PrettyInteractive({ side, prettyLines, sharedSet, values, setValueFor, groupValues }) {
+  // Track index of closing paren to attach group evaluation
+  let closeIndex = 0;
+  return (
+    <div className="space-y-0.5">
+      {prettyLines.map((ln,i)=>{
+        const trimmed = ln.trim();
+        const isOpen = trimmed === '(';
+        const isClose = trimmed === ')';
+        const endsWithOp = /[&|]$/.test(trimmed) && !isOpen && !isClose;
+        let conditionText = null;
+        let variable = null; let operator = null; let rhsRaw = null; let rhsIsNumber = false; let rhsNumber = 0; let rhsVar = null;
+        if (!isOpen && !isClose) {
+          conditionText = trimmed.replace(/[&|]$/,'').trim();
+          const m = conditionText.match(/^(.*?)\s*(>=|<=|==|!=|=|>|<)\s*(.*?)$/);
+          if (m) {
+            variable = m[1].trim(); operator = m[2]; rhsRaw = m[3].trim();
+            const num = Number(rhsRaw); rhsIsNumber = !isNaN(num) && rhsRaw !== ''; rhsNumber = num; if (!rhsIsNumber) rhsVar = rhsRaw;
+          } else {
+            variable = conditionText; // boolean style variable
+          }
+        }
+        const shared = sharedSet.has(trimmed);
+        const clickable = !!variable;
+        const variableVal = variable ? (values[variable] !== undefined ? values[variable] : 0) : null;
+        let rhsVal = null; if (operator) { rhsVal = rhsIsNumber ? rhsNumber : (values[rhsVar] !== undefined ? values[rhsVar] : 0); }
+        let evalBool = null;
+        if (variable) {
+          if (!operator) evalBool = variableVal !== 0 ? 1 : 0; else {
+            switch (operator) {
+              case '>': evalBool = variableVal > rhsVal ? 1 : 0; break;
+              case '>=': evalBool = variableVal >= rhsVal ? 1 : 0; break;
+              case '<': evalBool = variableVal < rhsVal ? 1 : 0; break;
+              case '<=': evalBool = variableVal <= rhsVal ? 1 : 0; break;
+              case '!=': evalBool = variableVal != rhsVal ? 1 : 0; break; // eslint-disable-line eqeqeq
+              case '==':
+              case '=': evalBool = variableVal == rhsVal ? 1 : 0; break; // eslint-disable-line eqeqeq
+              default: evalBool = 0;
+            }
+          }
+        }
+        let groupVal = null;
+        if (isClose && closeIndex < groupValues.length) {
+          groupVal = groupValues[closeIndex++];
+        }
+        return (
+          <div key={i} className={`flex items-center justify-between gap-2 group rounded-sm px-1 py-0.5 ${!shared && !isOpen && !isClose ? (side==='left' ? 'bg-red-300 dark:bg-red-800 text-red-900 dark:text-red-100' : 'bg-green-300 dark:bg-green-800 text-green-900 dark:text-green-100') : ''}`}>
+            <div
+              className={`flex-1 whitespace-pre break-words cursor-${clickable ? 'pointer' : 'default'} ${clickable ? 'hover:underline' : ''}`}
+              onClick={()=> clickable && setValueFor(variable)}
+              title={clickable ? `Click to set value for ${variable}` : ''}
+            >{ln}</div>
+            {variable && (
+              <div className="flex items-center gap-1">
+                <div className="text-[10px] font-mono px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700 min-w-[2rem] text-center" title={`Value of ${variable}`}>{variableVal}</div>
+                {operator && (
+                  <div className={`text-[10px] font-mono px-1 py-0.5 rounded min-w-[1.5rem] text-center ${evalBool === 1 ? 'bg-blue-300 dark:bg-blue-700 text-blue-900 dark:text-blue-100' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100'}`} title="Evaluation result (1=true,0=false)">{evalBool}</div>
+                )}
+                {!operator && (
+                  <div className={`text-[10px] font-mono px-1 py-0.5 rounded min-w-[1.5rem] text-center ${evalBool === 1 ? 'bg-blue-300 dark:bg-blue-700 text-blue-900 dark:text-blue-100' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-100'}`} title="Boolean result from variable value">{evalBool}</div>
+                )}
+              </div>
+            )}
+            {groupVal !== null && (
+              <div className="text-[10px] font-mono px-1 py-0.5 rounded bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100 min-w-[2rem] text-center" title="Group boolean evaluation">{groupVal}</div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
