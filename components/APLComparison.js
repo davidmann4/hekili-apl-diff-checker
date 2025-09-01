@@ -241,6 +241,19 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
           }
         });
       }
+      const mi = hash.match(/^#inspect-(\d+)$/i);
+      if (mi) {
+        const oneBased = parseInt(mi[1], 10);
+        const zeroIdx = oneBased - 1;
+        setLinkedRow(zeroIdx);
+        setInspectRow(zeroIdx);
+        requestAnimationFrame(() => {
+          const el = document.getElementById(`line-${oneBased}`);
+          if (el && typeof el.scrollIntoView === 'function') {
+            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
+        });
+      }
     }
     handleHash();
     window.addEventListener('hashchange', handleHash);
@@ -267,6 +280,26 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
     const shareUrl = window.location.href;
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(shareUrl).catch(() => {});
+    }
+  }, []);
+
+  const openInspector = useCallback((index) => {
+    if (typeof window === 'undefined') { setInspectRow(index); return; }
+    const oneBased = index + 1;
+    const newHash = `#inspect-${oneBased}`;
+    if (history && history.replaceState) {
+      history.replaceState(null, '', `${window.location.pathname}${window.location.search}${newHash}`);
+    } else {
+      window.location.hash = newHash;
+    }
+    setLinkedRow(index);
+    setInspectRow(index);
+    const el = document.getElementById(`line-${oneBased}`);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(window.location.href).catch(() => {});
     }
   }, []);
 
@@ -332,8 +365,8 @@ export default function APLComparison({ simc, hekili, generatedAt }) {
                       <span>Link</span>
                     </button>
                     <button
-                      onClick={() => setInspectRow(idx)}
-                      title="Inspect this line in detail"
+                      onClick={() => openInspector(idx)}
+                      title="Open inspector & copy shareable link"
                       className="text-[10px] px-1.5 py-0.5 rounded bg-purple-600 text-white shadow hover:bg-purple-700 focus:outline-none focus:ring flex items-center gap-1"
                     >
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

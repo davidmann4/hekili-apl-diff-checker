@@ -201,7 +201,17 @@ export default function LineInspector({ open, onClose, leftLine, rightLine, rowT
       <div className="relative z-50 m-4 flex-1 overflow-hidden rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 flex flex-col">
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
           <h2 className="text-sm font-semibold">Inspect Line #{index + 1} <span className="ml-2 text-xs font-normal text-gray-500">({rowType})</span></h2>
-          <button onClick={onClose} className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">Close</button>
+          <button onClick={() => {
+            // Clear #inspect-N hash if present so link can be re-copied later without confusion.
+            if (typeof window !== 'undefined' && window.location.hash.startsWith('#inspect-')) {
+              if (history && history.replaceState) {
+                history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+              } else {
+                window.location.hash = '';
+              }
+            }
+            onClose();
+          }} className="text-xs px-2 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">Close</button>
         </div>
         <div className="flex-1 overflow-auto">
           <section className="p-3 space-y-3">
@@ -249,10 +259,7 @@ export default function LineInspector({ open, onClose, leftLine, rightLine, rowT
                     })}
                   </div>
                 </div>
-                <div className="mt-2 text-[10px] text-gray-500 dark:text-gray-400 flex gap-4">
-                  <div><span className="px-1 bg-red-300 dark:bg-red-800 text-red-900 dark:text-red-100 rounded-sm inline-block"/> only left</div>
-                  <div><span className="px-1 bg-green-300 dark:bg-green-800 text-green-900 dark:text-green-100 rounded-sm inline-block"/> only right</div>
-                </div>
+                {/* Legend removed as requested */}
               </div>
             )}
           </section>
